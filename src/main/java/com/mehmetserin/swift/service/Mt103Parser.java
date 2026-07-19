@@ -84,7 +84,14 @@ public class Mt103Parser {
         }
         LocalDate date = LocalDate.parse(m.group(1), YYMMDD);
         String currency = m.group(2);
-        String amountRaw = m.group(3).replace(".", "").replace(',', '.');
+        String amountToken = m.group(3);
+        // SWIFT amounts use a comma as the decimal separator. A period is only a thousands
+        // separator and must not appear together with a comma in ambiguous ways.
+        if (amountToken.indexOf(',') < 0 && amountToken.indexOf('.') >= 0) {
+            throw new IllegalArgumentException(
+                    "Invalid :32A: amount '" + amountToken + "'. Use SWIFT comma decimal (e.g. 12345,67).");
+        }
+        String amountRaw = amountToken.replace(".", "").replace(',', '.');
         BigDecimal amount = new BigDecimal(amountRaw);
         return new Field32A(date.toString(), currency, amount);
     }
