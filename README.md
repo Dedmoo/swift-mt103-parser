@@ -31,6 +31,50 @@ flowchart TD
 
 Mandatory tags (`:20:`, `:32A:`, `:59:`) are enforced; a missing one returns `400`.
 
+## Domain model
+
+Class-level view of the main types and how they relate (fields, operations and dependencies).
+
+```mermaid
+classDiagram
+    direction TB
+    class SwiftController {
+        <<controller>>
+        -parser: Mt103Parser
+        +parse(request) ParsedMt103
+    }
+    class Mt103Parser {
+        <<service>>
+        +parse(message) ParsedMt103
+    }
+    class Field32A {
+        <<record>>
+        +valueDate: String
+        +currency: String
+        +amount: BigDecimal
+    }
+    class ParseRequest {
+        <<record>>
+        +message: String
+    }
+    class ParsedMt103 {
+        <<record>>
+        +senderReference: String
+        +bankOperationCode: String
+        +valueDate: String
+        +currency: String
+        +amount: BigDecimal
+        +orderingCustomer: String
+        +beneficiaryCustomer: String
+        +remittanceInfo: String
+        +detailsOfCharges: String
+    }
+    SwiftController --> Mt103Parser
+    SwiftController ..> ParseRequest
+    Mt103Parser ..> ParsedMt103
+    Mt103Parser ..> Field32A
+```
+
 ## Quick start
 
 ```bash
