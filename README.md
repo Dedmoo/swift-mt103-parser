@@ -4,6 +4,20 @@ Parser microservice for **SWIFT MT103** single customer credit transfer messages
 
 Built with **Java 17** and **Spring Boot 3**. No external SWIFT library is required; parsing is done with a focused tag reader.
 
+## Scope (honest)
+
+This is a learning / portfolio parser, not a SWIFTNet-connected production system.
+
+| Capability | Status |
+|------------|--------|
+| Parse core MT103 tags (`:20:`, `:23B:`, `:32A:`, `:50K:`/`:50A:`, `:59:`, `:70:`, `:71A:`) | Implemented |
+| Mandatory-tag validation with `400` on missing fields | Implemented |
+| SWIFT decimal-comma normalization | Implemented |
+| Full ISO 15022 message validation | Not included |
+| Other MT types (MT101, MT202, ...) or MX/ISO 20022 conversion | Not included |
+| SWIFTNet connectivity | Not included |
+| Persistence of parsed messages | Not included (stateless parser) |
+
 ## Architecture
 
 ```mermaid
