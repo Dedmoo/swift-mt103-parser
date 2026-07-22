@@ -1,5 +1,7 @@
 # SWIFT MT103 Parser
 
+[![CI](https://github.com/Dedmoo/swift-mt103-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/Dedmoo/swift-mt103-parser/actions/workflows/ci.yml)
+
 Parser microservice for **SWIFT MT103** single customer credit transfer messages. It extracts the key fields into a structured JSON payload.
 
 Built with **Java 17** and **Spring Boot 3**. No external SWIFT library is required; parsing is done with a focused tag reader.
