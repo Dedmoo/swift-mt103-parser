@@ -19,8 +19,8 @@ public class Mt103Models {
             String valueDate,           // :32A: date (yyyy-MM-dd)
             String currency,            // :32A: currency
             BigDecimal amount,          // :32A: amount
-            String orderingCustomer,    // :50K: / :50A:
-            String beneficiaryCustomer, // :59:
+            String orderingCustomer,    // :50K: / :50A: / :50F:
+            String beneficiaryCustomer, // :59: / :59A:
             String remittanceInfo,      // :70:
             String detailsOfCharges,    // :71A:
             String orderingInstitution, // :52A:

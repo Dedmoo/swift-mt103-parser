@@ -58,6 +58,13 @@ class Mt103ParserTest {
     }
 
     @Test
+    void parse_59A_beneficiaryVariant_isAccepted() throws IOException {
+        ParsedMt103 parsed = parser.parse(readFixture("valid-59a.txt"));
+
+        assertEquals("DEUTDEFF", parsed.beneficiaryCustomer());
+    }
+
+    @Test
     void parse_emptyMessage_reportsValidationError() {
         IllegalArgumentException exception =
                 assertThrows(IllegalArgumentException.class, () -> parser.parse("   "));
@@ -68,15 +75,21 @@ class Mt103ParserTest {
         return Stream.of(
                 Arguments.of("valid-envelope.txt", "ENVELOPEREF01", "EUR", "12345.67"),
                 Arguments.of("valid-plain.txt", "PLAINREF01", "USD", "1000.00"),
-                Arguments.of("valid-optional-tags.txt", "OPTIONALREF01", "TRY", "5000.25"));
+                Arguments.of("valid-optional-tags.txt", "OPTIONALREF01", "TRY", "5000.25"),
+                Arguments.of("valid-jpy.txt", "JPYREF01", "JPY", "1000"));
     }
 
     private static Stream<Arguments> invalidFixtures() {
         return Stream.of(
                 Arguments.of("missing-20.txt", "Mandatory tag :20: is missing."),
-                Arguments.of("missing-59.txt", "Mandatory tag :59: is missing."),
+                Arguments.of("missing-59.txt", "Mandatory beneficiary tag :59: or :59A: is missing."),
                 Arguments.of("invalid-32a-format.txt", "Invalid :32A: field."),
-                Arguments.of("invalid-32a-date.txt", "Invalid :32A: value date"));
+                Arguments.of("invalid-32a-date.txt", "Invalid :32A: value date"),
+                Arguments.of("duplicate-20.txt", "Duplicate tag :20: is not supported."),
+                Arguments.of("invalid-20-charset.txt", ":20: must contain"),
+                Arguments.of("invalid-32a-currency.txt", "Unsupported :32A: currency"),
+                Arguments.of("invalid-32a-jpy-scale.txt", "amount scale for JPY"),
+                Arguments.of("invalid-52a-bic.txt", ":52A: institution BIC"));
     }
 
     private static Stream<Arguments> partyFixtures() {
