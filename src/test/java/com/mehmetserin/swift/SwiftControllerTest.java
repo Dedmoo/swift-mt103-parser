@@ -10,7 +10,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -52,5 +54,27 @@ class SwiftControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void parse_oversizedMessage_returnsBadRequest() throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("message", "x".repeat(35_001)));
+
+        mockMvc.perform(post("/api/swift/mt103/parse")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fields.message").value("message must not exceed 35000 characters"));
+    }
+
+    @Test
+    void health_returnsServiceIdentityAndSecurityHeaders() throws Exception {
+        mockMvc.perform(get("/api/swift/mt103/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("healthy"))
+                .andExpect(jsonPath("$.service").value("SwiftMt103Parser"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"));
     }
 }

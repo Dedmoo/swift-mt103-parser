@@ -12,9 +12,9 @@
     </parent>
 
     <groupId>com.mehmetserin</groupId>
-    <artifactId>swift-mt103-parser</artifactId>
+    <artifactId>SwiftMt103Parser</artifactId>
     <version>1.0.0</version>
-    <name>swift-mt103-parser</name>
+    <name>SwiftMt103Parser</name>
     <description>Parser for SWIFT MT103 single customer credit transfer messages</description>
 
     <properties>

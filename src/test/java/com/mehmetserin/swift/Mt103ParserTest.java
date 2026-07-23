@@ -3,8 +3,15 @@ package com.mehmetserin.swift;
 import com.mehmetserin.swift.model.Mt103Models.ParsedMt103;
 import com.mehmetserin.swift.service.Mt103Parser;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.core.io.ClassPathResource;
 
 import java.math.BigDecimal;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -14,76 +21,73 @@ class Mt103ParserTest {
 
     private final Mt103Parser parser = new Mt103Parser();
 
-    private static final String SAMPLE = """
-            {1:F01BANKTRISAXXX0000000000}{2:I103BANKDEFFXXXXN}{4:
-            :20:REF1234567890
-            :23B:CRED
-            :32A:260720EUR12345,67
-            :50K:/TR000000000000000000000000
-            ACME EXPORT LTD
-            ISTANBUL
-            :59:/DE00000000000000000000
-            MUELLER GMBH
-            BERLIN
-            :70:INVOICE 2026-42
-            :71A:SHA
-            -}
-            """;
-
-    @Test
-    void parse_extractsCoreFields() {
-        ParsedMt103 parsed = parser.parse(SAMPLE);
-        assertEquals("REF1234567890", parsed.senderReference());
-        assertEquals("CRED", parsed.bankOperationCode());
-        assertEquals("2026-07-20", parsed.valueDate());
-        assertEquals("EUR", parsed.currency());
-        assertEquals(0, parsed.amount().compareTo(new BigDecimal("12345.67")));
-        assertEquals("SHA", parsed.detailsOfCharges());
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("validFixtures")
+    void parse_validFixture_extractsCoreFields(String fixture, String reference, String currency, String amount)
+            throws IOException {
+        ParsedMt103 parsed = parser.parse(readFixture(fixture));
+        assertEquals(reference, parsed.senderReference());
+        assertEquals(currency, parsed.currency());
+        assertEquals(0, parsed.amount().compareTo(new BigDecimal(amount)));
     }
 
-    @Test
-    void parse_extractsPartyLines() {
-        ParsedMt103 parsed = parser.parse(SAMPLE);
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidFixtures")
+    void parse_invalidFixture_reportsSpecificValidationError(String fixture, String expectedError) throws IOException {
+        IllegalArgumentException exception =
+                assertThrows(IllegalArgumentException.class, () -> parser.parse(readFixture(fixture)));
+        assertTrue(exception.getMessage().contains(expectedError));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("partyFixtures")
+    void parse_partyFixture_flattensMultilineValues(String fixture) throws IOException {
+        ParsedMt103 parsed = parser.parse(readFixture(fixture));
         assertTrue(parsed.orderingCustomer().contains("ACME EXPORT LTD"));
         assertTrue(parsed.beneficiaryCustomer().contains("MUELLER GMBH"));
         assertTrue(parsed.remittanceInfo().contains("INVOICE 2026-42"));
     }
 
-    @Test
-    void parse_worksWithoutSwiftBlocks() {
-        String plain = """
-                :20:PLAINREF
-                :23B:CRED
-                :32A:260101USD1000,00
-                :59:BENEFICIARY NAME
-                """;
-        ParsedMt103 parsed = parser.parse(plain);
-        assertEquals("PLAINREF", parsed.senderReference());
-        assertEquals("USD", parsed.currency());
-        assertEquals(0, parsed.amount().compareTo(new BigDecimal("1000.00")));
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("optionalTagFixtures")
+    void parse_optionalTags_exposesValues(String fixture) throws IOException {
+        ParsedMt103 parsed = parser.parse(readFixture(fixture));
+        assertEquals("ORDRTRISXXX", parsed.orderingInstitution());
+        assertEquals("ACCTDEFFXXX", parsed.accountWithInstitution());
+        assertEquals("/INS/ROUTING INFORMATION", parsed.senderToReceiverInformation());
     }
 
     @Test
-    void parse_missingMandatoryTag_throws() {
-        String missing = """
-                :20:REFONLY
-                :23B:CRED
-                """;
-        assertThrows(IllegalArgumentException.class, () -> parser.parse(missing));
+    void parse_emptyMessage_reportsValidationError() {
+        IllegalArgumentException exception =
+                assertThrows(IllegalArgumentException.class, () -> parser.parse("   "));
+        assertEquals("Message is empty.", exception.getMessage());
     }
 
-    @Test
-    void parse_invalid32A_throws() {
-        String bad = """
-                :20:REF
-                :32A:BADFIELD
-                :59:NAME
-                """;
-        assertThrows(IllegalArgumentException.class, () -> parser.parse(bad));
+    private static Stream<Arguments> validFixtures() {
+        return Stream.of(
+                Arguments.of("valid-envelope.txt", "ENVELOPEREF01", "EUR", "12345.67"),
+                Arguments.of("valid-plain.txt", "PLAINREF01", "USD", "1000.00"),
+                Arguments.of("valid-optional-tags.txt", "OPTIONALREF01", "TRY", "5000.25"));
     }
 
-    @Test
-    void parse_emptyMessage_throws() {
-        assertThrows(IllegalArgumentException.class, () -> parser.parse("   "));
+    private static Stream<Arguments> invalidFixtures() {
+        return Stream.of(
+                Arguments.of("missing-20.txt", "Mandatory tag :20: is missing."),
+                Arguments.of("missing-59.txt", "Mandatory tag :59: is missing."),
+                Arguments.of("invalid-32a-format.txt", "Invalid :32A: field."),
+                Arguments.of("invalid-32a-date.txt", "Invalid :32A: value date"));
+    }
+
+    private static Stream<Arguments> partyFixtures() {
+        return Stream.of(Arguments.of("valid-envelope.txt"));
+    }
+
+    private static Stream<Arguments> optionalTagFixtures() {
+        return Stream.of(Arguments.of("valid-optional-tags.txt"));
+    }
+
+    private static String readFixture(String fixture) throws IOException {
+        return new ClassPathResource("mt103/" + fixture).getContentAsString(StandardCharsets.UTF_8);
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,6 +20,8 @@ public class Mt103Parser {
                     Pattern.DOTALL);
 
     private static final DateTimeFormatter YYMMDD = DateTimeFormatter.ofPattern("yyMMdd");
+    private static final Pattern FIELD_32A_PATTERN =
+            Pattern.compile("^(\\d{6})([A-Z]{3})(\\d{1,15}(?:,\\d{1,14})?)$");
 
     public ParsedMt103 parse(String rawMessage) {
         if (rawMessage == null || rawMessage.isBlank()) {
@@ -47,7 +50,10 @@ public class Mt103Parser {
                 clean(orderingCustomer),
                 clean(beneficiary),
                 clean(tags.get("70")),
-                clean(tags.get("71A")));
+                clean(tags.get("71A")),
+                clean(tags.get("52A")),
+                clean(tags.get("57A")),
+                clean(tags.get("72")));
     }
 
     private String extractTextBlock(String raw) {
@@ -78,20 +84,21 @@ public class Mt103Parser {
 
     private Field32A parse32A(String field) {
         // Format: 6!n (date) 3!a (currency) 15d (amount with comma decimal)
-        Matcher m = Pattern.compile("^(\\d{6})([A-Z]{3})([\\d,\\.]+)$").matcher(field.replaceAll("\\s", ""));
+        Matcher m = FIELD_32A_PATTERN.matcher(field.replaceAll("\\s", ""));
         if (!m.matches()) {
-            throw new IllegalArgumentException("Invalid :32A: field: " + field);
+            throw new IllegalArgumentException(
+                    "Invalid :32A: field. Expected YYMMDDCCCAMOUNT with a comma decimal separator; received '" + field + "'.");
         }
-        LocalDate date = LocalDate.parse(m.group(1), YYMMDD);
+        LocalDate date;
+        try {
+            date = LocalDate.parse(m.group(1), YYMMDD);
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException(
+                    "Invalid :32A: value date '" + m.group(1) + "'. Expected a valid YYMMDD date.", exception);
+        }
         String currency = m.group(2);
         String amountToken = m.group(3);
-        // SWIFT amounts use a comma as the decimal separator. A period is only a thousands
-        // separator and must not appear together with a comma in ambiguous ways.
-        if (amountToken.indexOf(',') < 0 && amountToken.indexOf('.') >= 0) {
-            throw new IllegalArgumentException(
-                    "Invalid :32A: amount '" + amountToken + "'. Use SWIFT comma decimal (e.g. 12345,67).");
-        }
-        String amountRaw = amountToken.replace(".", "").replace(',', '.');
+        String amountRaw = amountToken.replace(',', '.');
         BigDecimal amount = new BigDecimal(amountRaw);
         return new Field32A(date.toString(), currency, amount);
     }

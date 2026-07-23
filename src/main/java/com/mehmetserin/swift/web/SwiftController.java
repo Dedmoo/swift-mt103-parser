@@ -30,6 +30,6 @@ public class SwiftController {
 
     @GetMapping("/health")
     public Map<String, String> health() {
-        return Map.of("status", "healthy", "service", "swift-mt103-parser");
+        return Map.of("status", "healthy", "service", "SwiftMt103Parser");
     }
 }
